@@ -20,34 +20,20 @@ class RedirectMessageType:
     description: str
 
 
-bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
-
-
 class TeamForm(StatesGroup):
     team_description = State()
 
 
-# @dp.message_handler(commands=['start'])
-# async def cmd_start(message: types.Message):
-#     await Form.team_description.set()
-#     await message.reply("Опиши команду которую ты хочешь найти.")
-
-
-
-class ResumeForm:
+class ResumeForm(StatesGroup):
     name = State()
     age = State()
     gender = State()
     hobby = State()
 
 
-# @dp.message_handler(state='*', commands='cancel')
-# @dp.message_handler(commands=['start'])
-# async def cmd_start(message: types.Message):
-#     await Form.name.set()
-#     await message.reply("Укажите ваше ФИО")
+bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
 
 
 @dp.message_handler(commands=['start'])
@@ -62,7 +48,7 @@ async def start(message: types.Message):
 
 
 @dp.message_handler(Text(equals='Помощь'))
-async def get_phones(message: types.Message):
+async def help_handler(message: types.Message):
     await message.answer('''Помощь: 
     Что может этот бот?
     Он может помочь вам найти команду.
@@ -71,14 +57,14 @@ async def get_phones(message: types.Message):
 
 
 @dp.message_handler(Text(equals='Найти команду'))
-async def get_phones(message: types.Message):
-    await message.answer('''Когда бот найдет подходящюю команду для вас, он вам напишет!!!
-''')
+async def find_team_handler(message: types.Message):
+    await TeamForm.team_description.set()
+    await message.answer('Опиши команду, которую ты хочешь найти.')
 
 
 @dp.message_handler(Text(equals='Моё резюме'))
 async def get_phones(message: types.Message):
-    await Form.name.set()
+    await ResumeForm.name.set()
     await message.reply("Укажите ваше ФИО")
 
 
@@ -134,13 +120,13 @@ async def process_name(message: types.Message, state: FSMContext):
     await message.reply("Сколько вам лет?")
 
 
-@dp.message_handler(lambda message: not message.text.isdigit(), state=Form.age)
+@dp.message_handler(lambda message: not message.text.isdigit(), state=ResumeForm.age)
 async def process_age_invalid(message: types.Message):
     return await message.reply("Это не число!")
 
 
 # Принимаем возраст и узнаём пол
-@dp.message_handler(lambda message: message.text.isdigit(), state=Form.age)
+@dp.message_handler(lambda message: message.text.isdigit(), state=ResumeForm.age)
 async def process_age(message: types.Message, state: FSMContext):
     await ResumeForm.next()
     await state.update_data(age=int(message.text))
@@ -189,7 +175,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Сохранить')
 
     
-@dp.message_handler(state=Form.team_description)
+@dp.message_handler(state=TeamForm.team_description)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['team_description'] = message.text
