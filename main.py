@@ -4,11 +4,18 @@ from aiogram.dispatcher.filters import Text
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 from aiogram import Bot, types, Dispatcher
+from dataclasses import dataclass
 from dotenv import load_dotenv
 
-from Types.message_type import RedirectMessageType
 
 load_dotenv()
+
+
+@dataclass
+class RedirectMessageType:
+    title: str
+    description: str
+
 
 bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
 dp = Dispatcher(bot)
@@ -41,7 +48,7 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
     processed: str = text.lower()
 
     match processed:
-        case 'Помощь':
+        case 'помощь':
             return RedirectMessageType(
                 title="помощь",
                 description="Нажмите накнопку чтоб перейти к боту"
@@ -51,7 +58,7 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
                 title="Поиск команды",
                 description="Нажмите накнопку чтобы перейти к боту"
             )
-        case "Моё":
+        case "моё":
             return RedirectMessageType(
                 title="Редактировать моё ризюме",
                 description="Нажмите накнопку чтобы перейти к боту"
@@ -64,8 +71,6 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
 async def handle_message(message: types.Message) -> None:
     message_type = message.chat.type
     text: str = message.text
-
-    print(message.chat.id)
 
     keyboard = InlineKeyboardMarkup()
     bot_chat = f'tg://resolve?domain={os.environ.get("BOT_USERNAME").replace("@", "")}&start=chat'
