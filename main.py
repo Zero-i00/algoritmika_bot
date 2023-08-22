@@ -5,13 +5,11 @@ from aiogram.utils import executor
 from aiogram import Bot, types, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, message
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from aiogram.dispatcher.filters import Text, state
-from aiogram.types import ParseMode
+from aiogram.dispatcher.filters import Text
 from dataclasses import dataclass
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -43,29 +41,34 @@ class Form(StatesGroup):
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
-    start_buttons = ['Помощь', 'Найти команду']
+    start_buttons = ['Помощь', 'Найти команду', 'Моё резюме']
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.add(*start_buttons)
     await message.reply('''
 Здравствуйте, этот бот создан
-для того чтобы помочь найти вам команду.
-Надеемся что у вас это получится
-и опасайтесь мошенников.''', reply_markup=keyboard)
+для того, чтобы помочь найти вам команду.
+Надеемся, что у вас это получится.''', reply_markup=keyboard)
 
 
 @dp.message_handler(Text(equals='Помощь'))
 async def get_phones(message: types.Message):
     await message.answer('''Помощь: 
     Что может этот бот?
-    Он может помоч вам нати команду.
+    Он может помочь вам найти команду.
     Как её найти?
-    Чтобы её найти надо нажать на кнопку  найти команду.''')
+    Чтобы её найти, надо нажать на кнопку "Найти команду".''')
 
 
 @dp.message_handler(Text(equals='Найти команду'))
 async def get_phones(message: types.Message):
-    await message.answer('''Когда бот найдет подходящюю команду для вас он вам напишет
+    await message.answer('''Когда бот найдет подходящюю команду для вас, он вам напишет!!!
 ''')
+
+
+@dp.message_handler(Text(equals='Моё резюме'))
+async def get_phones(message: types.Message):
+    await Form.name.set()
+    await message.reply("Укажите ваше ФИО")
 
 
 def handle_redirect(text: str) -> RedirectMessageType | None:
@@ -75,12 +78,12 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
         case 'помощь':
             return RedirectMessageType(
                 title="помощь",
-                description="Нажмите накнопку чтоб перейти к боту"
+                description="Нажмите накнопку, чтобы перейти к боту"
             )
         case "найти команду":
             return RedirectMessageType(
                 title="Поиск команды",
-                description="Нажмите накнопку чтобы перейти к боту"
+                description="Нажмите накнопку, чтобы перейти к боту"
             )
         case "моё":
             return RedirectMessageType(
@@ -111,6 +114,7 @@ async def handle_message(message: types.Message) -> None:
                 reply_markup=keyboard
             )
 
+
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -137,7 +141,7 @@ async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['gender'] = message.text
     await Form.next()
-    await message.reply("Напишите немного о себе")
+    await message.reply("Расскажите немного о себе")
 
 
 @dp.message_handler(state=Form.hobby)
@@ -145,7 +149,7 @@ async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['hobby'] = message.text
         keyboard = InlineKeyboardMarkup()
-        inline_btn_1 = InlineKeyboardButton('Оставить', callback_data='button_resume_send')
+        inline_btn_1 = InlineKeyboardButton('Сохранить', callback_data='button_resume_send')
         keyboard.add(inline_btn_1)
         inline_btn_2 = InlineKeyboardButton('Удалить', callback_data='button_resume_cancel')
         keyboard.add(inline_btn_2)
@@ -161,14 +165,18 @@ async def process_gender(message: types.Message, state: FSMContext):
         )
     await state.finish()
 
+
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_cancel')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Отмена')
+
+
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_send')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Сохранить')
+
 
 def main():
     executor.start_polling(dp)
