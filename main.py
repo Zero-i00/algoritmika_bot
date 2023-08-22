@@ -25,7 +25,18 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
 
-class Form(StatesGroup):
+class TeamForm(StatesGroup):
+    team_description = State()
+
+
+# @dp.message_handler(commands=['start'])
+# async def cmd_start(message: types.Message):
+#     await Form.team_description.set()
+#     await message.reply("Опиши команду которую ты хочешь найти.")
+
+
+
+class ResumeForm:
     name = State()
     age = State()
     gender = State()
@@ -115,11 +126,11 @@ async def handle_message(message: types.Message) -> None:
             )
 
 
-@dp.message_handler(state=Form.name)
+@dp.message_handler(state=ResumeForm.name)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['name'] = message.text
-    await Form.next()
+    await ResumeForm.next()
     await message.reply("Сколько вам лет?")
 
 
@@ -131,20 +142,20 @@ async def process_age_invalid(message: types.Message):
 # Принимаем возраст и узнаём пол
 @dp.message_handler(lambda message: message.text.isdigit(), state=Form.age)
 async def process_age(message: types.Message, state: FSMContext):
-    await Form.next()
+    await ResumeForm.next()
     await state.update_data(age=int(message.text))
     await message.reply("Каковы ваши основные достоинства?")
 
 
-@dp.message_handler(state=Form.gender)
+@dp.message_handler(state=ResumeForm.gender)
 async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['gender'] = message.text
-    await Form.next()
+    await ResumeForm.next()
     await message.reply("Расскажите немного о себе")
 
 
-@dp.message_handler(state=Form.hobby)
+@dp.message_handler(state=ResumeForm.hobby)
 async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['hobby'] = message.text
@@ -176,6 +187,32 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Сохранить')
+
+    
+@dp.message_handler(state=Form.team_description)
+async def process_name(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['team_description'] = message.text
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        button_send = InlineKeyboardButton(text="Отправить в группу", callback_data='button_send')
+        button_cancel = InlineKeyboardButton(text="Не отправлять в группу", callback_data='button_cancel')
+        keyboard.add(button_send).add(button_cancel)
+        await message.answer(text=message.text, reply_markup=keyboard)
+        await state.finish()
+
+
+@dp.callback_query_handler()
+async def vote_callback(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'button_send':
+        async with state.proxy() as data:
+            options = ["набор команды", "не интересно"]
+            await bot.send_poll(chat_id=os.environ.get('CHAT_ID'),
+                                question=data['team_description'],
+                                options=options,
+                                is_anonymous=False,
+                                allows_multiple_answers=False)
+    elif callback.data == 'button_cancel':
+        await callback.answer(text='Не хочешь как хочешь')
 
 
 def main():
