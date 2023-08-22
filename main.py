@@ -141,6 +141,17 @@ async def process_gender(message: types.Message, state: FSMContext):
     await message.reply("Расскажите немного о себе")
 
 
+def get_age_postfix(age):
+    k = int(age) % 10
+    if k == 1 and (10 > k or k > 20):
+        t = "год"
+    elif 1 < k < 5 and (10 > k or k > 20):
+        t = "года"
+    else:
+        t = "лет"
+    return t
+
+
 @dp.message_handler(state=ResumeForm.hobby)
 async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -153,7 +164,7 @@ async def process_gender(message: types.Message, state: FSMContext):
         await message.answer(
             md.text(
                 md.text('ФИО:', md.bold(data['name'])),
-                md.text('Возраст:', md.code(data['age'])),
+                md.text('Возраст:', md.code(data['age'], get_age_postfix(data['age']))),
                 md.text('Достоинства:', data['gender']),
                 md.text('О себе:', md.bold(data['hobby'])),
                 sep='\n',
@@ -174,7 +185,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Сохранить')
 
-    
+
 @dp.message_handler(state=TeamForm.team_description)
 async def process_name(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
