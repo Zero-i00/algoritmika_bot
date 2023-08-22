@@ -3,14 +3,24 @@ import aiogram.utils.markdown as md
 from aiogram.dispatcher import FSMContext
 from aiogram.utils import executor
 from aiogram import Bot, types, Dispatcher
-from dotenv import load_dotenv
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, message
 
-load_dotenv()
 from aiogram.dispatcher.filters import Text, state
 from aiogram.types import ParseMode
+from dataclasses import dataclass
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+@dataclass
+class RedirectMessageType:
+    title: str
+    description: str
+
 
 bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
 storage = MemoryStorage()
@@ -22,19 +32,84 @@ class Form(StatesGroup):
     age = State()
     gender = State()
     hobby = State()
-    invalid = State()
 
 
-@dp.message_handler(state='*', commands='cancel')
+# @dp.message_handler(state='*', commands='cancel')
+# @dp.message_handler(commands=['start'])
+# async def cmd_start(message: types.Message):
+#     await Form.name.set()
+#     await message.reply("Укажите ваше ФИО")
+
+
 @dp.message_handler(commands=['start'])
-async def cmd_start(message: types.Message):
-    await Form.name.set()
-    await message.reply('''Здравствуйте, этот бот создан
+async def start(message: types.Message):
+    start_buttons = ['Помощь', 'Найти команду']
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    keyboard.add(*start_buttons)
+    await message.reply('''
+Здравствуйте, этот бот создан
 для того чтобы помочь найти вам команду.
 Надеемся что у вас это получится
-и опасайтесь мошенников.''')
-    await message.reply("Укажите ваше ФИО")
+и опасайтесь мошенников.''', reply_markup=keyboard)
 
+
+@dp.message_handler(Text(equals='Помощь'))
+async def get_phones(message: types.Message):
+    await message.answer('''Помощь: 
+    Что может этот бот?
+    Он может помоч вам нати команду.
+    Как её найти?
+    Чтобы её найти надо нажать на кнопку  найти команду.''')
+
+
+@dp.message_handler(Text(equals='Найти команду'))
+async def get_phones(message: types.Message):
+    await message.answer('''Когда бот найдет подходящюю команду для вас он вам напишет
+''')
+
+
+def handle_redirect(text: str) -> RedirectMessageType | None:
+    processed: str = text.lower()
+
+    match processed:
+        case 'помощь':
+            return RedirectMessageType(
+                title="помощь",
+                description="Нажмите накнопку чтоб перейти к боту"
+            )
+        case "найти команду":
+            return RedirectMessageType(
+                title="Поиск команды",
+                description="Нажмите накнопку чтобы перейти к боту"
+            )
+        case "моё":
+            return RedirectMessageType(
+                title="Редактировать моё ризюме",
+                description="Нажмите накнопку чтобы перейти к боту"
+            )
+        case _:
+            return
+
+
+@dp.message_handler()
+async def handle_message(message: types.Message) -> None:
+    message_type = message.chat.type
+    text: str = message.text
+
+    keyboard = InlineKeyboardMarkup()
+    bot_chat = f'tg://resolve?domain={os.environ.get("BOT_USERNAME").replace("@", "")}&start=chat'
+
+    if message_type == 'supergroup' and os.environ.get("BOT_USERNAME") in text:
+        new_text: str = text.replace(os.environ.get("BOT_USERNAME"), '').strip()
+        response = handle_redirect(new_text)
+        if response:
+            url_button = InlineKeyboardButton(text=response.title, url=bot_chat)
+            keyboard.add(url_button)
+
+            await message.reply(
+                text=response.description,
+                reply_markup=keyboard
+            )
 
 @dp.message_handler(state=Form.name)
 async def process_name(message: types.Message, state: FSMContext):
@@ -70,9 +145,9 @@ async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['hobby'] = message.text
         keyboard = InlineKeyboardMarkup()
-        inline_btn_1 = InlineKeyboardButton('Оставить', callback_data='button2')
+        inline_btn_1 = InlineKeyboardButton('Оставить', callback_data='button_resume_send')
         keyboard.add(inline_btn_1)
-        inline_btn_2 = InlineKeyboardButton('Удалить', callback_data='button1')
+        inline_btn_2 = InlineKeyboardButton('Удалить', callback_data='button_resume_cancel')
         keyboard.add(inline_btn_2)
         await message.answer(
             md.text(
@@ -86,12 +161,11 @@ async def process_gender(message: types.Message, state: FSMContext):
         )
     await state.finish()
 
-
-@dp.callback_query_handler(lambda c: c.data == 'button1')
+@dp.callback_query_handler(lambda c: c.data == 'button_resume_cancel')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Отмена')
-@dp.callback_query_handler(lambda c: c.data == 'button2')
+@dp.callback_query_handler(lambda c: c.data == 'button_resume_send')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Сохранить')
