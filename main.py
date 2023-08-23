@@ -209,7 +209,7 @@ async def vote_callback(callback: types.CallbackQuery, state: FSMContext):
                                 is_anonymous=False,
                                 allows_multiple_answers=False)
     elif callback.data == 'button_cancel':
-        await callback.answer(text='Не хочешь как хочешь')
+        await callback.answer(text='Хорошо')
 
 
 def main():
