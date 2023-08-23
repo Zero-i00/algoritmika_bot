@@ -59,7 +59,7 @@ async def help_handler(message: types.Message):
 @dp.message_handler(Text(equals='Найти команду'))
 async def find_team_handler(message: types.Message):
     await TeamForm.team_description.set()
-    await message.answer('Опиши команду, которую ты хочешь найти.')
+    await message.answer('Опиши свои идеи, для чего вам нужна команда.')
 
 
 @dp.message_handler(Text(equals='Моё резюме'))
@@ -75,17 +75,17 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
         case 'помощь':
             return RedirectMessageType(
                 title="помощь",
-                description="Нажмите накнопку, чтобы перейти к боту"
+                description="Нажмите на кнопку, чтобы перейти к боту"
             )
         case "найти команду":
             return RedirectMessageType(
                 title="Поиск команды",
-                description="Нажмите накнопку, чтобы перейти к боту"
+                description="Нажмите на кнопку, чтобы перейти к боту"
             )
         case "моё":
             return RedirectMessageType(
                 title="Редактировать моё ризюме",
-                description="Нажмите накнопку чтобы перейти к боту"
+                description="Нажмите на кнопку чтобы перейти к боту"
             )
         case _:
             return
@@ -125,7 +125,7 @@ async def process_age_invalid(message: types.Message):
     return await message.reply("Это не число!")
 
 
-# Принимаем возраст и узнаём пол
+
 @dp.message_handler(lambda message: message.text.isdigit(), state=ResumeForm.age)
 async def process_age(message: types.Message, state: FSMContext):
     await ResumeForm.next()
@@ -138,7 +138,7 @@ async def process_gender(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['gender'] = message.text
     await ResumeForm.next()
-    await message.reply("Расскажите немного о себе")
+    await message.reply("Напишите о себе")
 
 
 @dp.message_handler(state=ResumeForm.hobby)
@@ -152,7 +152,7 @@ async def process_gender(message: types.Message, state: FSMContext):
         keyboard.add(inline_btn_2)
         await message.answer(
             md.text(
-                md.text('ФИО:', md.bold(data['name'])),
+                md.text('Имя:', md.bold(data['name'])),
                 md.text('Возраст:', md.code(data['age'])),
                 md.text('Достоинства:', data['gender']),
                 md.text('О себе:', md.bold(data['hobby'])),
@@ -198,7 +198,7 @@ async def vote_callback(callback: types.CallbackQuery, state: FSMContext):
                                 is_anonymous=False,
                                 allows_multiple_answers=False)
     elif callback.data == 'button_cancel':
-        await callback.answer(text='Не хочешь как хочешь')
+        await callback.answer(text='Хорошо')
 
 
 def main():
