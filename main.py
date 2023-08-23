@@ -16,105 +16,20 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 
+from forms.forms import ResumeForm, TeamForm
+from types.types import RedirectMessageType, Resume
+from utils.db import create_resume
+from utils.utils import get_age_postfix
+
 load_dotenv()
-
-
-@dataclass
-class RedirectMessageType:
-    title: str
-    description: str
-
-
-@dataclass
-class Resume:
-    chat_id: str
-    FIO: str
-    age: int
-    about: str
-    skills: str
-
-
-class TeamForm(StatesGroup):
-    team_description = State()
-
-
-class ResumeForm(StatesGroup):
-    name = State()
-    age = State()
-    gender = State()
-    hobby = State()
-
 
 bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
 st = MemoryStorage()
 dp = Dispatcher(bot, storage=st)
 
-cred = credentials.Certificate("maga-cd4dd-firebase-adminsdk-3gdqy-23f2874c71.json")
-database_url = {
-    'databaseUrl': 'https://maga-cd4dd-firebaseio.com'
-}
-firebase_admin.initialize_app(cred, database_url)
-
-
-# email = input('please enter your email address:')
-# password = input('please enter your password:')
-# user = auth.create_user(email=email, password=password)
-# print('user created successfyll : {0}'.format(user.uid))
-
-
-# db = firestore.client()
-
-# email = 'beloys0071@gmail.com'
-# user = auth.get_user_by_email(email)
-# print('User id is :{0}'.format(user.uid))
-
-# collection_ref = db.collection('collection_name')
-# doc_ref_custom = collection_ref.document('custom_id')
-# old_doc_data = doc_ref_custom.get().to_dict()
-# doc_ref_custom = collection_ref.document('custom_id')
-# doc_ref_custom.set(old_doc_data)
-# doc_ref_custom.delete()
-# new_user = Resume( FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies')
-
-
-database = firestore.client()
-col_ref = database.collection('user_info')
-
-
-def create_resume(resume: Resume) -> DatetimeWithNanoseconds | None:
-    return col_ref.add({
-        'chat_id': resume.chat_id,
-        'FIO': resume.FIO,
-        'age': resume.age,
-        'about': resume.about,
-        'skills': resume.skills,
-    })
-
-
-async def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
-    user = await col_ref.where('chat_id', '==', chat_id).get()
-    if not user:
-        return
-    buf_user = await col_ref.document(user[0].id)
-    await buf_user.set({
-        'chat_id': chat_id,
-        'FIO': resume.FIO,
-        'age': resume.age,
-        'about': resume.about,
-        'skills': resume.skills,
-    })
-
-
-async def get_resume_by_chat_id(chat_id: str) -> Resume | None:
-    user = await col_ref.where('chat_id', '==', chat_id).get()
-    if not user:
-        return
-
-    return user[0].to_dict()
-
 
 @dp.message_handler(commands=['start'])
-async def start(message: types.Message):
+async def start(message: types.Message) -> None:
     start_buttons = ['Помощь', 'Найти команду', 'Моё резюме']
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.add(*start_buttons)
@@ -134,13 +49,13 @@ async def help_handler(message: types.Message):
 
 
 @dp.message_handler(Text(equals='Найти команду'))
-async def find_team_handler(message: types.Message):
+async def find_team_handler(message: types.Message) -> None:
     await TeamForm.team_description.set()
     await message.answer('Опиши команду, которую ты хочешь найти.')
 
 
 @dp.message_handler(Text(equals='Моё резюме'))
-async def get_phones(message: types.Message):
+async def get_phones(message: types.Message) -> None:
     await ResumeForm.name.set()
     await message.reply("Укажите ваше ФИО")
 
@@ -190,7 +105,7 @@ async def handle_message(message: types.Message) -> None:
 
 
 @dp.message_handler(state=ResumeForm.name)
-async def process_name(message: types.Message, state: FSMContext):
+async def process_name(message: types.Message, state: FSMContext) -> None:
     async with state.proxy() as data:
         data['name'] = message.text
     await ResumeForm.next()
@@ -198,39 +113,28 @@ async def process_name(message: types.Message, state: FSMContext):
 
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state=ResumeForm.age)
-async def process_age_invalid(message: types.Message):
+async def process_age_invalid(message: types.Message) -> None:
     return await message.reply("Это не число!")
 
 
 # Принимаем возраст и узнаём пол
 @dp.message_handler(lambda message: message.text.isdigit(), state=ResumeForm.age)
-async def process_age(message: types.Message, state: FSMContext):
+async def process_age(message: types.Message, state: FSMContext) -> None:
     await ResumeForm.next()
     await state.update_data(age=int(message.text))
     await message.reply("Каковы ваши основные достоинства?")
 
 
 @dp.message_handler(state=ResumeForm.gender)
-async def process_gender(message: types.Message, state: FSMContext):
+async def process_gender(message: types.Message, state: FSMContext) -> None:
     async with state.proxy() as data:
         data['gender'] = message.text
     await ResumeForm.next()
     await message.reply("Расскажите немного о себе")
 
 
-def get_age_postfix(age):
-    k = int(age) % 10
-    if k == 1 and (10 > k or k > 20):
-        t = "год"
-    elif 1 < k < 5 and (10 > k or k > 20):
-        t = "года"
-    else:
-        t = "лет"
-    return t
-
-
 @dp.message_handler(state=ResumeForm.hobby)
-async def process_gender(message: types.Message, state: FSMContext):
+async def process_gender(message: types.Message, state: FSMContext) -> None:
     async with state.proxy() as data:
         data['hobby'] = message.text
         keyboard = InlineKeyboardMarkup()
@@ -251,13 +155,13 @@ async def process_gender(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_cancel')
-async def process_callback_button1(callback_query: types.CallbackQuery):
+async def process_callback_button1(callback_query: types.CallbackQuery) -> None:
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 'Отмена')
 
 
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_send', state=ResumeForm)
-async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext):
+async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext) -> None:
     await bot.answer_callback_query(callback_query.id)
     async with state.proxy() as data:
         resume = Resume(
@@ -277,7 +181,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery, state: F
 
 
 @dp.message_handler(state=TeamForm.team_description)
-async def process_name(message: types.Message, state: FSMContext):
+async def process_name(message: types.Message, state: FSMContext) -> None:
     async with state.proxy() as data:
         data['team_description'] = message.text
         keyboard = InlineKeyboardMarkup(row_width=2)
@@ -289,7 +193,7 @@ async def process_name(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler()
-async def vote_callback(callback: types.CallbackQuery, state: FSMContext):
+async def vote_callback(callback: types.CallbackQuery, state: FSMContext) -> None:
     if callback.data == 'button_send':
         async with state.proxy() as data:
             options = ["набор команды", "не интересно"]
