@@ -6,6 +6,10 @@ from aiogram import Bot, types, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import firebase_admin
+
+from firebase_admin import credentials, db
+from firebase_admin import storage, firestore
 
 from aiogram.dispatcher.filters import Text
 from dataclasses import dataclass
@@ -20,6 +24,16 @@ class RedirectMessageType:
     description: str
 
 
+@dataclass
+class Resume:
+    chat_id: str
+    FIO: str
+    age: int
+    about: str
+    skills: str
+    hobbies: str
+
+
 class TeamForm(StatesGroup):
     team_description = State()
 
@@ -31,9 +45,83 @@ class ResumeForm(StatesGroup):
     hobby = State()
 
 
+
+
 bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
+
+cred = credentials.Certificate("maga-cd4dd-firebase-adminsdk-3gdqy-23f2874c71.json")
+database_url = {
+    'databaseUrl': 'https://maga-cd4dd-firebaseio.com'
+}
+firebase_admin.initialize_app(cred, database_url)
+
+
+# email = input('please enter your email address:')
+# password = input('please enter your password:')
+# user = auth.create_user(email=email, password=password)
+# print('user created successfyll : {0}'.format(user.uid))
+
+
+# db = firestore.client()
+
+# email = 'beloys0071@gmail.com'
+# user = auth.get_user_by_email(email)
+# print('User id is :{0}'.format(user.uid))
+
+# collection_ref = db.collection('collection_name')
+# doc_ref_custom = collection_ref.document('custom_id')
+# old_doc_data = doc_ref_custom.get().to_dict()
+# doc_ref_custom = collection_ref.document('custom_id')
+# doc_ref_custom.set(old_doc_data)
+# doc_ref_custom.delete()
+# new_user = Resume( FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies')
+
+
+database = firestore.client()
+col_ref = database.collection('user_info')
+
+
+def create_resume(resume: Resume) -> None:
+    col_ref.add({
+        'chat_id': resume.chat_id,
+        'FIO': resume.FIO,
+        'age': resume.age,
+        'about': resume.about,
+        'skills': resume.skills,
+        'hobbies': resume.hobbies,
+    })
+
+
+def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
+    user = col_ref.where('chat_id', '==', chat_id).get()
+    if not user:
+        return
+    buf_user = col_ref.document(user[0].id)
+    buf_user.set({
+        'chat_id': chat_id,
+        'FIO': resume.FIO,
+        'age': resume.age,
+        'about': resume.about,
+        'skills': resume.skills,
+        'hobbies': resume.hobbies
+    })
+
+
+def get_resume_by_chat_id(chat_id: str) -> Resume:
+    user = col_ref.where('chat_id', '==', chat_id).get()
+    if not user:
+        return None
+
+    return user[0].to_dict()
+
+
+print(get_resume_by_chat_id(chat_id='3213231'))
+
+# new_user = Resume( FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies')
+
+create_resume(resume=Resume(FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies', chat_id='43634635'))
 
 
 @dp.message_handler(commands=['start'])
