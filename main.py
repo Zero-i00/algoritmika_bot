@@ -14,6 +14,7 @@ from firebase_admin import storage, firestore
 from aiogram.dispatcher.filters import Text
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 
 load_dotenv()
 
@@ -31,7 +32,6 @@ class Resume:
     age: int
     about: str
     skills: str
-    hobbies: str
 
 
 class TeamForm(StatesGroup):
@@ -45,11 +45,9 @@ class ResumeForm(StatesGroup):
     hobby = State()
 
 
-
-
 bot = Bot(token=os.environ.get('TOKEN'), parse_mode=types.ParseMode.HTML)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+st = MemoryStorage()
+dp = Dispatcher(bot, storage=st)
 
 cred = credentials.Certificate("maga-cd4dd-firebase-adminsdk-3gdqy-23f2874c71.json")
 database_url = {
@@ -83,45 +81,36 @@ database = firestore.client()
 col_ref = database.collection('user_info')
 
 
-def create_resume(resume: Resume) -> None:
-    col_ref.add({
+def create_resume(resume: Resume) -> DatetimeWithNanoseconds | None:
+    return col_ref.add({
         'chat_id': resume.chat_id,
         'FIO': resume.FIO,
         'age': resume.age,
         'about': resume.about,
         'skills': resume.skills,
-        'hobbies': resume.hobbies,
     })
 
 
-def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
-    user = col_ref.where('chat_id', '==', chat_id).get()
+async def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
+    user = await col_ref.where('chat_id', '==', chat_id).get()
     if not user:
         return
-    buf_user = col_ref.document(user[0].id)
-    buf_user.set({
+    buf_user = await col_ref.document(user[0].id)
+    await buf_user.set({
         'chat_id': chat_id,
         'FIO': resume.FIO,
         'age': resume.age,
         'about': resume.about,
         'skills': resume.skills,
-        'hobbies': resume.hobbies
     })
 
 
-def get_resume_by_chat_id(chat_id: str) -> Resume:
-    user = col_ref.where('chat_id', '==', chat_id).get()
+async def get_resume_by_chat_id(chat_id: str) -> Resume | None:
+    user = await col_ref.where('chat_id', '==', chat_id).get()
     if not user:
-        return None
+        return
 
     return user[0].to_dict()
-
-
-print(get_resume_by_chat_id(chat_id='3213231'))
-
-# new_user = Resume( FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies')
-
-create_resume(resume=Resume(FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies', chat_id='43634635'))
 
 
 @dp.message_handler(commands=['start'])
@@ -259,7 +248,6 @@ async def process_gender(message: types.Message, state: FSMContext):
             ),
             reply_markup=keyboard
         )
-    await state.finish()
 
 
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_cancel')
@@ -268,10 +256,24 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.send_message(callback_query.from_user.id, 'Отмена')
 
 
-@dp.callback_query_handler(lambda c: c.data == 'button_resume_send')
-async def process_callback_button1(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data == 'button_resume_send', state=ResumeForm)
+async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
-    await bot.send_message(callback_query.from_user.id, 'Сохранить')
+    async with state.proxy() as data:
+        resume = Resume(
+            chat_id=callback_query.from_user.id,
+            FIO=data['name'],
+            age=int(data['age']),
+            about=data['gender'],
+            skills=data['hobby'],
+        )
+
+        is_created = create_resume(resume)
+        if is_created:
+            await bot.send_message(callback_query.from_user.id, 'Резюме успешно создано')
+        else:
+            await bot.send_message(callback_query.from_user.id, 'Что-то пошло не так')
+    await state.finish()
 
 
 @dp.message_handler(state=TeamForm.team_description)
