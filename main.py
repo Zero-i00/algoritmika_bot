@@ -7,7 +7,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import firebase_admin
-
+from dacite import from_dict
 from firebase_admin import credentials, db
 from firebase_admin import storage, firestore
 
@@ -56,27 +56,6 @@ database_url = {
 firebase_admin.initialize_app(cred, database_url)
 
 
-# email = input('please enter your email address:')
-# password = input('please enter your password:')
-# user = auth.create_user(email=email, password=password)
-# print('user created successfyll : {0}'.format(user.uid))
-
-
-# db = firestore.client()
-
-# email = 'beloys0071@gmail.com'
-# user = auth.get_user_by_email(email)
-# print('User id is :{0}'.format(user.uid))
-
-# collection_ref = db.collection('collection_name')
-# doc_ref_custom = collection_ref.document('custom_id')
-# old_doc_data = doc_ref_custom.get().to_dict()
-# doc_ref_custom = collection_ref.document('custom_id')
-# doc_ref_custom.set(old_doc_data)
-# doc_ref_custom.delete()
-# new_user = Resume( FIO='FIO', age='age', about='about', skills='skills', hobbies='hobbies')
-
-
 database = firestore.client()
 col_ref = database.collection('user_info')
 
@@ -105,16 +84,18 @@ async def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
     })
 
 
-async def get_resume_by_chat_id(chat_id: str) -> Resume | None:
-    user = await col_ref.where('chat_id', '==', chat_id).get()
+def get_resume_by_chat_id(chat_id: str) -> Resume | None:
+    user = col_ref.where('FIO', '==', chat_id).get()
+    print(user)
     if not user:
-        return
+        return None
 
-    return user[0].to_dict()
+    print(from_dict(data_class=Resume, data=user[0].to_dict()))
+    return from_dict(data_class=Resume, data=user[0].to_dict())
 
 
 @dp.message_handler(commands=['start'])
-async def start(message: types.Message):
+async def start(message: types.Message) -> None:
     start_buttons = ['Помощь', 'Найти команду', 'Моё резюме']
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     keyboard.add(*start_buttons)
@@ -151,6 +132,7 @@ async def get_phones(message: types.Message):
     )
     # await ResumeForm.name.set()
     # await message.reply("Укажите ваше ФИО")
+
 @dp.callback_query_handler(lambda c: c.data == 'bu')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
@@ -268,6 +250,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery, state: F
     await state.finish()
     await ResumeForm.name.set()
     await bot.send_message(callback_query.from_user.id,"Укажите ваше ФИО")
+
 
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_send', state=ResumeForm)
 async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext):
