@@ -151,7 +151,11 @@ async def get_phones(message: types.Message):
     )
     # await ResumeForm.name.set()
     # await message.reply("Укажите ваше ФИО")
-
+@dp.callback_query_handler(lambda c: c.data == 'bu')
+async def process_callback_button1(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    await ResumeForm.name.set()
+    await bot.send_message(callback_query.from_user.id,"Укажите ваше ФИО")
 
 def handle_redirect(text: str) -> RedirectMessageType | None:
     processed: str = text.lower()
@@ -244,7 +248,7 @@ async def process_gender(message: types.Message, state: FSMContext):
         keyboard = InlineKeyboardMarkup()
         inline_btn_1 = InlineKeyboardButton('Сохранить', callback_data='button_resume_send')
         keyboard.add(inline_btn_1)
-        inline_btn_2 = InlineKeyboardButton('Редактировать', callback_data='bu')
+        inline_btn_2 = InlineKeyboardButton('Редактировать', callback_data='bu1')
         keyboard.add(inline_btn_2)
         await message.answer(
             md.text(
@@ -256,15 +260,14 @@ async def process_gender(message: types.Message, state: FSMContext):
             ),
             reply_markup=keyboard
         )
-    await state.finish()
 
 
-@dp.callback_query_handler(lambda c: c.data == 'bu')
-async def process_callback_button1(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data == 'bu1', state=ResumeForm)
+async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
+    await state.finish()
     await ResumeForm.name.set()
     await bot.send_message(callback_query.from_user.id,"Укажите ваше ФИО")
-
 
 @dp.callback_query_handler(lambda c: c.data == 'button_resume_send', state=ResumeForm)
 async def process_callback_button1(callback_query: types.CallbackQuery, state: FSMContext):
@@ -283,7 +286,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery, state: F
             await bot.send_message(callback_query.from_user.id, 'Резюме успешно создано')
         else:
             await bot.send_message(callback_query.from_user.id, 'Что-то пошло не так')
-
+    await state.finish()
 
 @dp.message_handler(state=TeamForm.team_description)
 async def process_name(message: types.Message, state: FSMContext):
