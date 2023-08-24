@@ -153,6 +153,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery):
     await ResumeForm.name.set()
     await bot.send_message(callback_query.from_user.id,"Укажите ваше ФИО")
 
+
 def handle_redirect(text: str) -> RedirectMessageType | None:
     processed: str = text.lower()
 
@@ -210,7 +211,6 @@ async def process_age_invalid(message: types.Message):
     return await message.reply("Это не число!")
 
 
-# Принимаем возраст и узнаём пол
 @dp.message_handler(lambda message: message.text.isdigit(), state=ResumeForm.age)
 async def process_age(message: types.Message, state: FSMContext):
     await ResumeForm.next()
@@ -307,18 +307,59 @@ async def process_name(message: types.Message, state: FSMContext):
         await state.finish()
 
 
+@dp.callback_query_handler(lambda c: c.data == 'button_send_my_resume')
+async def process_callback_button_send_my_resume(callback_query: types.CallbackQuery):
+
+    resume = await get_resume_by_chat_id(chat_id=callback_query.from_user.id)
+
+    await bot.answer_callback_query(callback_query.id)
+    if resume:
+        await bot.send_message(
+            chat_id=callback_query.from_user.id,
+            text=
+            f'''
+        Резюме для {callback_query.message.poll.question.split(' ')[1]}
+Ваше резюме:
+{md.text('ФИО:', md.bold(resume.get('FIO')))}
+{md.text('Возраст:', md.code(resume.get('age'), get_age_postfix(resume.get('age'))))}
+{md.text('Достоинства:', resume.get('skills'))}
+{md.text('О себе:', md.bold(resume.get('about')))}    
+        '''
+        )
+    else:
+        await bot.send_message(
+            chat_id=callback_query.from_user.id,
+            text='Мы не можем найти ваше резюме'
+        )
+    # await bot.answer_callback_query(callback_query.id)
+    # await ResumeForm.name.set()
+    # await bot.send_message(callback_query.from_user.id, "Укажите ваше ФИО")
+
 @dp.callback_query_handler()
 async def vote_callback(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'button_send':
         async with state.proxy() as data:
             options = ["набор команды", "не интересно"]
+            bot_chat = f'tg://resolve?domain={os.environ.get("BOT_USERNAME").replace("@", "")}&start=chat'
+
+            keyboard = InlineKeyboardMarkup()
+            button_send_my_resume = InlineKeyboardButton(text='Поделиться резюме', callback_data='button_send_my_resume')
+            button_edit_my_resume = InlineKeyboardButton(text='Редактировать моё резюме', url=bot_chat)
+            keyboard.add(button_send_my_resume)
+            keyboard.add(button_edit_my_resume)
             await bot.send_poll(chat_id=os.environ.get('CHAT_ID'),
-                                question=data['team_description'],
+                                question=
+f'''
+{callback.from_user.first_name} @{callback.from_user.username} набирает команду:
+{data['team_description']}
+''',
                                 options=options,
                                 is_anonymous=False,
-                                allows_multiple_answers=False)
+                                allows_multiple_answers=False,
+                                reply_markup=keyboard)
     elif callback.data == 'button_cancel':
         await callback.answer(text='Не хочешь как хочешь')
+
 
 
 def main():
