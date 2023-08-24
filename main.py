@@ -123,13 +123,13 @@ async def find_team_handler(message: types.Message):
 async def get_resume(message: types.Message):
     await message.answer('Подождите, мы ищем ваше резюме....')
     resume = await get_resume_by_chat_id(chat_id=message.chat.id)
+    keyboard = InlineKeyboardMarkup()
     if resume:
-        keyboard = InlineKeyboardMarkup()
         ink = InlineKeyboardButton('Редактировать', callback_data='bu')
         keyboard.add(ink)
         await message.answer(
             text=
-f'''
+            f'''
 {md.text('ФИО:', md.bold(resume.get('FIO')))}
 {md.text('Возраст:', md.code(resume.get('age'), get_age_postfix(resume.get('age'))))}
 {md.text('Достоинства:', resume.get('skills'))}
@@ -138,9 +138,13 @@ f'''
             reply_markup=keyboard
         )
     else:
-        await message.answer('У вас ещё нет резюме')
-        await ResumeForm.name.set()
-        await message.reply("Укажите ваше ФИО")
+        ink = InlineKeyboardButton('Создать резюме', callback_data='bu')
+        keyboard.add(ink)
+        await message.answer(
+            text='''
+        У вас пока что нет резюме, cоздайте его.''',
+            reply_markup=keyboard
+        )
 
 
 @dp.callback_query_handler(lambda c: c.data == 'bu')
