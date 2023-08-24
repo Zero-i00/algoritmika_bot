@@ -143,14 +143,13 @@ async def find_team_handler(message: types.Message):
 async def get_phones(message: types.Message):
 
     keyboard = InlineKeyboardMarkup()
-    ink = InlineKeyboardButton('Редактировать', callback_data='bu')
+    ink = InlineKeyboardButton('Создать резюме', callback_data='bu')
     keyboard.add(ink)
     await message.answer(
-        text='hfghfghgfhgf',
+        text='''
+У вас пока что нет резюме, cоздайте его.''',
         reply_markup=keyboard
     )
-    # await ResumeForm.name.set()
-    # await message.reply("Укажите ваше ФИО")
 @dp.callback_query_handler(lambda c: c.data == 'bu')
 async def process_callback_button1(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
