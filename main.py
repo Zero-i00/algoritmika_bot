@@ -70,20 +70,6 @@ def create_resume(resume: Resume) -> DatetimeWithNanoseconds | None:
     })
 
 
-async def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
-    user = await col_ref.where('chat_id', '==', chat_id).get()
-    if not user:
-        return
-    buf_user = await col_ref.document(user[0].id)
-    await buf_user.set({
-        'chat_id': chat_id,
-        'FIO': resume.FIO,
-        'age': resume.age,
-        'about': resume.about,
-        'skills': resume.skills,
-    })
-
-
 async def get_resume_by_chat_id(chat_id: str) -> dict | None:
     for response in col_ref.get():
         value = response.to_dict()
@@ -91,6 +77,20 @@ async def get_resume_by_chat_id(chat_id: str) -> dict | None:
             return value
 
     return None
+
+
+def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
+    user = col_ref.where('chat_id', '==', chat_id).get()
+    if not user:
+        return
+    buf_user = col_ref.document(user[0].id)
+    buf_user.set({
+        'chat_id': chat_id,
+        'FIO': resume.FIO,
+        'age': resume.age,
+        'about': resume.about,
+        'skills': resume.skills,
+    })
 
 
 @dp.message_handler(commands=['start'])
