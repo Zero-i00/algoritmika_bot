@@ -153,7 +153,7 @@ def handle_redirect(text: str) -> RedirectMessageType | None:
     processed: str = text.lower()
 
     match processed:
-        case 'помощь':
+        case 'help':
             return RedirectMessageType(
                 title="помощь",
                 description="Нажмите накнопку, чтобы перейти к боту"
@@ -274,11 +274,20 @@ async def process_callback_button1(callback_query: types.CallbackQuery, state: F
             skills=data['hobby'],
         )
 
-        is_created = create_resume(resume)
-        if is_created:
-            await bot.send_message(callback_query.from_user.id, 'Резюме успешно создано')
+        is_has_resume = await get_resume_by_chat_id(chat_id=callback_query.from_user.id)
+
+        if is_has_resume:
+            update_resume_by_chat_id(
+                chat_id=callback_query.from_user.id,
+                resume=resume
+            )
+            await bot.send_message(callback_query.from_user.id, 'Резюме успешно обнавлено')
         else:
-            await bot.send_message(callback_query.from_user.id, 'Что-то пошло не так')
+            is_created = create_resume(resume)
+            if is_created:
+                await bot.send_message(callback_query.from_user.id, 'Резюме успешно создано')
+            else:
+                await bot.send_message(callback_query.from_user.id, 'Что-то пошло не так')
     await state.finish()
 
 
