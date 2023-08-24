@@ -84,14 +84,13 @@ async def update_resume_by_chat_id(chat_id: str, resume: Resume) -> None:
     })
 
 
-def get_resume_by_chat_id(chat_id: str) -> Resume | None:
-    user = col_ref.where('FIO', '==', chat_id).get()
-    print(user)
-    if not user:
-        return None
+async def get_resume_by_chat_id(chat_id: str) -> dict | None:
+    for response in col_ref.get():
+        value = response.to_dict()
+        if value.get('chat_id') == chat_id:
+            return value
 
-    print(from_dict(data_class=Resume, data=user[0].to_dict()))
-    return from_dict(data_class=Resume, data=user[0].to_dict())
+    return None
 
 
 @dp.message_handler(commands=['start'])
@@ -121,17 +120,28 @@ async def find_team_handler(message: types.Message):
 
 
 @dp.message_handler(Text(equals='Моё резюме'))
-async def get_phones(message: types.Message):
+async def get_resume(message: types.Message):
+    await message.answer('Подождите, мы ищем ваше резюме....')
+    resume = await get_resume_by_chat_id(chat_id=message.chat.id)
+    if resume:
+        keyboard = InlineKeyboardMarkup()
+        ink = InlineKeyboardButton('Редактировать', callback_data='bu')
+        keyboard.add(ink)
+        await message.answer(
+            text=
+f'''
+{md.text('ФИО:', md.bold(resume.get('FIO')))}
+{md.text('Возраст:', md.code(resume.get('age'), get_age_postfix(resume.get('age'))))}
+{md.text('Достоинства:', resume.get('skills'))}
+{md.text('О себе:', md.bold(resume.get('about')))}
+''',
+            reply_markup=keyboard
+        )
+    else:
+        await message.answer('У вас ещё нет резюме')
+        await ResumeForm.name.set()
+        await message.reply("Укажите ваше ФИО")
 
-    keyboard = InlineKeyboardMarkup()
-    ink = InlineKeyboardButton('Редактировать', callback_data='bu')
-    keyboard.add(ink)
-    await message.answer(
-        text='hfghfghgfhgf',
-        reply_markup=keyboard
-    )
-    # await ResumeForm.name.set()
-    # await message.reply("Укажите ваше ФИО")
 
 @dp.callback_query_handler(lambda c: c.data == 'bu')
 async def process_callback_button1(callback_query: types.CallbackQuery):
@@ -270,6 +280,7 @@ async def process_callback_button1(callback_query: types.CallbackQuery, state: F
         else:
             await bot.send_message(callback_query.from_user.id, 'Что-то пошло не так')
     await state.finish()
+
 
 @dp.message_handler(state=TeamForm.team_description)
 async def process_name(message: types.Message, state: FSMContext):
